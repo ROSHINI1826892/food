@@ -1,0 +1,818 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Foodie Express - Order Delicious Indian Food Online</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Inter font from Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        /* Custom scrollbar for better aesthetics */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #ff69b4;
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #e60073;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(to right, #ffe4e1, #ffc0cb); /* Soft pink gradient */
+            color: #333;
+        }
+
+        /* Custom styles for modals */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.6);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease-in-out, visibility 0.3s ease-in-out;
+        }
+
+        .modal-overlay.active {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .modal-content {
+            background-color: white;
+            padding: 2rem;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            max-width: 90%;
+            max-height: 90%;
+            overflow-y: auto;
+            transform: translateY(-20px);
+            transition: transform 0.3s ease-in-out;
+            position: relative; /* For the close button */
+        }
+
+        .modal-overlay.active .modal-content {
+            transform: translateY(0);
+        }
+
+        .close-button {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: #ff1493;
+            transition: transform 0.2s ease-in-out;
+        }
+
+        .close-button:hover {
+            transform: scale(1.1);
+        }
+
+        /* Simple animation for item added to cart */
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+        .item-added-pulse {
+            animation: pulse 0.3s ease-out;
+        }
+
+        /* Custom button styling */
+        .btn-primary {
+            background-color: #ff1493; /* Deep pink */
+            color: white;
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            font-weight: 600;
+            transition: background-color 0.2s ease-in-out, transform 0.1s ease-in-out;
+            box-shadow: 0 4px 10px rgba(255, 20, 147, 0.3);
+        }
+        .btn-primary:hover {
+            background-color: #e60073; /* Darker pink on hover */
+            transform: translateY(-2px);
+        }
+        .btn-primary:active {
+            transform: translateY(0);
+        }
+
+        .btn-secondary {
+            background-color: #f0f0f0;
+            color: #333;
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            font-weight: 600;
+            transition: background-color 0.2s ease-in-out;
+        }
+        .btn-secondary:hover {
+            background-color: #e0e0e0;
+        }
+
+        /* Input field focus glow */
+        input:focus, textarea:focus {
+            outline: none;
+            border-color: #ff1493;
+            box-shadow: 0 0 0 3px rgba(255, 20, 147, 0.3);
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col">
+    <!-- Header Section -->
+    <header class="bg-gradient-to-r from-pink-500 to-red-500 p-4 shadow-lg text-white flex flex-col md:flex-row items-center justify-between sticky top-0 z-50 rounded-b-xl">
+        <h1 class="text-3xl font-bold mb-4 md:mb-0">Foodie Express</h1>
+        <div class="flex flex-col md:flex-row items-center gap-4 w-full md:w-auto">
+            <input type="text" id="searchInput" placeholder="Search for dishes..." class="p-3 rounded-full border-0 focus:ring-2 focus:ring-pink-300 text-gray-800 w-full md:w-64 shadow-md transition-all duration-200">
+            <div class="flex gap-3 w-full md:w-auto">
+                <button id="cartButton" class="btn-primary flex items-center justify-center gap-2 w-full md:w-auto">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-shopping-cart"><circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"/></svg>
+                    Cart (<span id="cartItemCount">0</span>)
+                </button>
+                <button id="locationButton" class="btn-primary flex items-center justify-center gap-2 w-full md:w-auto">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-map-pin"><path d="M12 12.75a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Z"/><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7Z"/></svg>
+                    Find Location
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Area - Menu Items -->
+    <main class="flex-grow p-6">
+        <section id="menuSection" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 max-w-7xl mx-auto">
+            <!-- Menu items will be dynamically loaded here by JavaScript -->
+        </section>
+        <div id="noResults" class="hidden text-center text-xl text-gray-600 mt-8">No dishes found matching your search.</div>
+    </main>
+
+    <!-- Cart Modal -->
+    <div id="cartModal" class="modal-overlay">
+        <div class="modal-content w-full md:w-2/3 lg:w-1/2">
+            <button class="close-button" onclick="closeModal('cartModal')">&times;</button>
+            <h2 class="text-3xl font-bold mb-6 text-center text-pink-600">Your Cart</h2>
+            <div id="cartItemsContainer" class="max-h-96 overflow-y-auto mb-6 pr-2">
+                <!-- Cart items will be dynamically loaded here -->
+                <p id="emptyCartMessage" class="text-center text-gray-500 text-lg">Your cart is empty.</p>
+            </div>
+            <div id="cartSummary" class="border-t pt-4 border-gray-200">
+                <div class="flex justify-between text-lg font-medium mb-2">
+                    <span>Subtotal:</span>
+                    <span>₹<span id="cartSubtotal">0.00</span></span>
+                </div>
+                <div class="flex justify-between text-lg font-medium mb-2">
+                    <span>Delivery Fee:</span>
+                    <span>₹<span id="cartDeliveryFee">40.00</span></span>
+                </div>
+                <div class="flex justify-between text-lg font-medium mb-4">
+                    <span>GST (5%):</span>
+                    <span>₹<span id="cartGST">0.00</span></span>
+                </div>
+                <div class="flex justify-between text-xl font-bold text-pink-700 border-t pt-4 border-gray-300">
+                    <span>Total:</span>
+                    <span>₹<span id="cartTotal">0.00</span></span>
+                </div>
+            </div>
+            <button id="checkoutButton" class="btn-primary w-full mt-6">Proceed to Checkout</button>
+        </div>
+    </div>
+
+    <!-- Address Modal -->
+    <div id="addressModal" class="modal-overlay">
+        <div class="modal-content w-full md:w-2/3 lg:w-1/2">
+            <button class="close-button" onclick="closeModal('addressModal')">&times;</button>
+            <h2 class="text-3xl font-bold mb-6 text-center text-pink-600">Delivery Address</h2>
+            <form id="addressForm" class="space-y-4">
+                <div>
+                    <label for="fullName" class="block text-gray-700 text-sm font-semibold mb-2">Full Name</label>
+                    <input type="text" id="fullName" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-pink-400 focus:border-pink-400 transition-all" required>
+                </div>
+                <div>
+                    <label for="phoneNumber" class="block text-gray-700 text-sm font-semibold mb-2">Phone Number</label>
+                    <input type="tel" id="phoneNumber" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-pink-400 focus:border-pink-400 transition-all" pattern="[0-9]{10}" title="Please enter a 10-digit phone number" required>
+                    <p id="phoneError" class="text-red-500 text-sm mt-1 hidden">Please enter a valid 10-digit phone number.</p>
+                </div>
+                <div>
+                    <label for="addressLine1" class="block text-gray-700 text-sm font-semibold mb-2">Address Line 1</label>
+                    <input type="text" id="addressLine1" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-pink-400 focus:border-pink-400 transition-all" required>
+                </div>
+                <div>
+                    <label for="addressLine2" class="block text-gray-700 text-sm font-semibold mb-2">Address Line 2 (Optional)</label>
+                    <input type="text" id="addressLine2" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-pink-400 focus:border-pink-400 transition-all">
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label for="city" class="block text-gray-700 text-sm font-semibold mb-2">City</label>
+                        <input type="text" id="city" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-pink-400 focus:border-pink-400 transition-all" required>
+                    </div>
+                    <div>
+                        <label for="pincode" class="block text-gray-700 text-sm font-semibold mb-2">Pincode</label>
+                        <input type="text" id="pincode" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-pink-400 focus:border-pink-400 transition-all" pattern="[0-9]{6}" title="Please enter a 6-digit pincode" required>
+                        <p id="pincodeError" class="text-red-500 text-sm mt-1 hidden">Please enter a valid 6-digit pincode.</p>
+                    </div>
+                </div>
+                <div>
+                    <label for="landmark" class="block text-gray-700 text-sm font-semibold mb-2">Landmark (Optional)</label>
+                    <input type="text" id="landmark" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-pink-400 focus:border-pink-400 transition-all">
+                </div>
+                <button type="submit" class="btn-primary w-full mt-6">Save Address</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Checkout Modal (combines order summary and payment) -->
+    <div id="checkoutModal" class="modal-overlay">
+        <div class="modal-content w-full md:w-2/3 lg:w-1/2">
+            <button class="close-button" onclick="closeModal('checkoutModal')">&times;</button>
+            <h2 class="text-3xl font-bold mb-6 text-center text-pink-600">Complete Your Order</h2>
+
+            <!-- Delivery Address Section -->
+            <div class="mb-8 p-4 border border-pink-200 rounded-lg bg-pink-50">
+                <h3 class="text-xl font-semibold mb-3 text-pink-700 flex items-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-truck"><path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2"/><path d="M10 18H6"/><path d="M17 18h.01"/><path d="M21 18h.01"/><path d="M18 13V9a2 2 0 0 0-2-2h-4l-3 3v4"/><path d="M14 18h1c.6 0 1-.4 1-1v-4a1 1 0 0 0-1-1h-1"/></svg>
+                    Delivery Address
+                </h3>
+                <div id="displayAddress" class="text-gray-700">
+                    <p class="font-medium" id="displayFullName"></p>
+                    <p id="displayAddressLine1"></p>
+                    <p id="displayAddressLine2"></p>
+                    <p><span id="displayCity"></span> - <span id="displayPincode"></span></p>
+                    <p id="displayLandmark" class="text-sm italic"></p>
+                    <p class="font-medium mt-2">Phone: <span id="displayPhoneNumber"></span></p>
+                </div>
+                <button id="changeAddressButton" class="btn-secondary text-sm mt-4 px-3 py-1">Change Address</button>
+            </div>
+
+            <!-- Order Summary Section -->
+            <div class="mb-8 p-4 border border-pink-200 rounded-lg bg-pink-50">
+                <h3 class="text-xl font-semibold mb-3 text-pink-700 flex items-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-clipboard-list"><rect width="8" height="4" x="8" y="2"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M12 11h4"/><path d="M12 16h4"/><path d="M8 11h.01"/><path d="M8 16h.01"/></svg>
+                    Order Summary
+                </h3>
+                <div id="checkoutOrderItems" class="max-h-60 overflow-y-auto mb-4 pr-2 border-b pb-4 border-gray-200">
+                    <!-- Order items will be loaded here -->
+                </div>
+                <div class="space-y-2 text-gray-800">
+                    <div class="flex justify-between">
+                        <span>Subtotal:</span>
+                        <span>₹<span id="checkoutSubtotal">0.00</span></span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span>Delivery Fee:</span>
+                        <span>₹<span id="checkoutDeliveryFee">40.00</span></span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span>GST (5%):</span>
+                        <span>₹<span id="checkoutGST">0.00</span></span>
+                    </div>
+                    <div class="flex justify-between text-xl font-bold text-pink-700 pt-3 border-t border-gray-300 mt-3">
+                        <span>Total Payable:</span>
+                        <span>₹<span id="checkoutTotal">0.00</span></span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Payment Method Section -->
+            <div class="p-4 border border-pink-200 rounded-lg bg-pink-50">
+                <h3 class="text-xl font-semibold mb-3 text-pink-700 flex items-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-credit-card"><rect width="20" height="14" x="2" y="5" rx="2"/><path d="M2 10h20"/></svg>
+                    Payment Method
+                </h3>
+                <div class="space-y-3">
+                    <label class="flex items-center p-3 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
+                        <input type="radio" name="paymentMethod" value="cod" class="form-radio h-5 w-5 text-pink-600" checked>
+                        <span class="ml-3 text-lg font-medium text-gray-800">Cash on Delivery</span>
+                    </label>
+                    <label class="flex items-center p-3 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
+                        <input type="radio" name="paymentMethod" value="online" class="form-radio h-5 w-5 text-pink-600">
+                        <span class="ml-3 text-lg font-medium text-gray-800">Online Payment (UPI / Cards / Net Banking)</span>
+                    </label>
+                </div>
+            </div>
+
+            <button id="placeOrderButton" class="btn-primary w-full mt-6">Place Order</button>
+        </div>
+    </div>
+
+    <!-- Order Confirmation Modal -->
+    <div id="confirmationModal" class="modal-overlay">
+        <div class="modal-content text-center w-full md:w-1/2 lg:w-1/3">
+            <button class="close-button" onclick="closeModal('confirmationModal')">&times;</button>
+            <svg xmlns="http://www.w3.org/2000/svg" width="60" height="60" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-check-circle mx-auto mb-4"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg>
+            <h2 class="text-3xl font-bold mb-4 text-green-600">Order Placed Successfully!</h2>
+            <p class="text-lg text-gray-700 mb-6">Your order from Foodie Express has been confirmed.</p>
+            <div id="confirmationDetails" class="text-left text-gray-700 p-4 bg-gray-50 rounded-lg mb-6">
+                <p><strong>Order ID:</strong> <span id="confOrderId">#XYZ123</span></p>
+                <p><strong>Total Amount:</strong> ₹<span id="confTotalAmount">0.00</span></p>
+                <p><strong>Payment Method:</strong> <span id="confPaymentMethod"></span></p>
+                <p><strong>Delivery Address:</strong> <span id="confAddress"></span></p>
+            </div>
+            <button class="btn-primary" onclick="closeModal('confirmationModal'); resetApp();">Continue Shopping</button>
+        </div>
+    </div>
+
+    <script>
+        // --- Global Variables and Data ---
+        const menuItems = [
+            { id: 1, name: "Butter Chicken", description: "Creamy tomato-based curry with tender chicken pieces.", price: 420, category: "Main Course", image: "https://placehold.co/400x250/ffc0cb/333?text=Butter+Chicken" },
+            { id: 2, name: "Chicken Tikka Masala", description: "Grilled chicken chunks in a spiced tomato and onion gravy.", price: 450, category: "Main Course", image: "https://placehold.co/400x250/ffe4e1/333?text=Chicken+Tikka" },
+            { id: 3, name: "Paneer Butter Masala", description: "Soft paneer cubes in a rich, creamy tomato gravy.", price: 380, category: "Main Course", image: "https://placehold.co/400x250/ffc0cb/333?text=Paneer+Masala" },
+            { id: 4, name: "Dal Makhani", description: "Slow-cooked black lentils with butter and cream.", price: 320, category: "Main Course", image: "https://placehold.co/400x250/ffe4e1/333?text=Dal+Makhani" },
+            { id: 5, name: "Biryani (Chicken)", description: "Fragrant basmati rice cooked with spiced chicken.", price: 390, category: "Rice", image: "https://placehold.co/400x250/ffc0cb/333?text=Chicken+Biryani" },
+            { id: 6, name: "Biryani (Vegetable)", description: "Aromatic basmati rice cooked with mixed vegetables and spices.", price: 350, category: "Rice", image: "https://placehold.co/400x250/ffe4e1/333?text=Veg+Biryani" },
+            { id: 7, name: "Naan (Butter)", description: "Soft, leavened bread brushed with butter.", price: 60, category: "Bread", image: "https://placehold.co/400x250/ffc0cb/333?text=Butter+Naan" },
+            { id: 8, name: "Garlic Naan", description: "Naan bread infused with fresh garlic.", price: 70, category: "Bread", image: "https://placehold.co/400x250/ffe4e1/333?text=Garlic+Naan" },
+            { id: 9, name: "Tandoori Roti", description: "Whole wheat bread baked in a tandoor.", price: 40, category: "Bread", image: "https://placehold.co/400x250/ffc0cb/333?text=Tandoori+Roti" },
+            { id: 10, name: "Gulab Jamun", description: "Deep-fried milk solids soaked in sugar syrup.", price: 120, category: "Dessert", image: "https://placehold.co/400x250/ffe4e1/333?text=Gulab+Jamun" },
+            { id: 11, name: "Mango Lassi", description: "Refreshing yogurt drink with sweet mango pulp.", price: 150, category: "Beverage", image: "https://placehold.co/400x250/ffc0cb/333?text=Mango+Lassi" },
+            { id: 12, name: "Masala Dosa", description: "Crispy rice crepe filled with spiced potato masala.", price: 180, category: "South Indian", image: "https://placehold.co/400x250/ffe4e1/333?text=Masala+Dosa" },
+            { id: 13, name: "Idli Sambar", description: "Steamed rice cakes served with lentil soup.", price: 150, category: "South Indian", image: "https://placehold.co/400x250/ffc0cb/333?text=Idli+Sambar" },
+            { id: 14, name: "Vada Pav", description: "Spiced potato fritter in a bread bun.", price: 80, category: "Street Food", image: "https://placehold.co/400x250/ffe4e1/333?text=Vada+Pav" },
+            { id: 15, name: "Pani Puri", description: "Crispy hollow balls filled with spiced water and potato.", price: 90, category: "Street Food", image: "https://placehold.co/400x250/ffc0cb/333?text=Pani+Puri" },
+            { id: 16, name: "Aloo Gobi", description: "Dry curry of potatoes and cauliflower with spices.", price: 280, category: "Vegetarian", image: "https://placehold.co/400x250/ffe4e1/333?text=Aloo+Gobi" },
+            { id: 17, name: "Chana Masala", description: "Spicy chickpea curry.", price: 290, category: "Vegetarian", image: "https://placehold.co/400x250/ffc0cb/333?text=Chana+Masala" },
+            { id: 18, name: "Palak Paneer", description: "Paneer cubes in a creamy spinach gravy.", price: 370, category: "Vegetarian", image: "https://placehold.co/400x250/ffe4e1/333?text=Palak+Paneer" },
+            { id: 19, name: "Rogan Josh (Lamb)", description: "Aromatic Kashmiri lamb curry.", price: 550, category: "Non-Vegetarian", image: "https://placehold.co/400x250/ffc0cb/333?text=Rogan+Josh" },
+            { id: 20, name: "Fish Curry", description: "Spicy and tangy fish curry.", price: 480, category: "Non-Vegetarian", image: "https://placehold.co/400x250/ffe4e1/333?text=Fish+Curry" },
+            { id: 21, name: "Samosa (2 pcs)", description: "Crispy pastry with spiced potato and pea filling.", price: 100, category: "Appetizer", image: "https://placehold.co/400x250/ffc0cb/333?text=Samosa" },
+            { id: 22, name: "Veg Pakora", description: "Assorted vegetable fritters.", price: 140, category: "Appetizer", image: "https://placehold.co/400x250/ffe4e1/333?text=Veg+Pakora" },
+            { id: 23, name: "Chicken 65", description: "Spicy, deep-fried chicken appetizer.", price: 320, category: "Appetizer", image: "https://placehold.co/400x250/ffc0cb/333?text=Chicken+65" },
+            { id: 24, name: "Plain Rice", description: "Steamed basmati rice.", price: 150, category: "Rice", image: "https://placehold.co/400x250/ffe4e1/333?text=Plain+Rice" },
+            { id: 25, name: "Jeera Rice", description: "Basmati rice flavored with cumin seeds.", price: 180, category: "Rice", image: "https://placehold.co/400x250/ffc0cb/333?text=Jeera+Rice" },
+            { id: 26, name: "Pulao (Peas)", description: "Basmati rice cooked with green peas.", price: 220, category: "Rice", image: "https://placehold.co/400x250/ffe4e1/333?text=Peas+Pulao" },
+            { id: 27, name: "Chapati", description: "Thin whole wheat flatbread.", price: 30, category: "Bread", image: "https://placehold.co/400x250/ffc0cb/333?text=Chapati" },
+            { id: 28, name: "Laccha Paratha", description: "Layered whole wheat flatbread.", price: 70, category: "Bread", image: "https://placehold.co/400x250/ffe4e1/333?text=Laccha+Paratha" },
+            { id: 29, name: "Kheer", description: "Rice pudding flavored with cardamom and nuts.", price: 130, category: "Dessert", image: "https://placehold.co/400x250/ffc0cb/333?text=Kheer" },
+            { id: 30, name: "Jalebi", description: "Crispy, syrupy sweet pretzel-like dessert.", price: 110, category: "Dessert", image: "https://placehold.co/400x250/ffe4e1/333?text=Jalebi" },
+            { id: 31, name: "Sweet Lassi", description: "Sweet yogurt drink.", price: 120, category: "Beverage", image: "https://placehold.co/400x250/ffc0cb/333?text=Sweet+Lassi" },
+            { id: 32, name: "Salted Lassi", description: "Savory yogurt drink with a hint of salt.", price: 120, category: "Beverage", image: "https://placehold.co/400x250/ffe4e1/333?text=Salted+Lassi" },
+            { id: 33, name: "Filter Coffee", description: "Traditional South Indian coffee.", price: 90, category: "Beverage", image: "https://placehold.co/400x250/ffc0cb/333?text=Filter+Coffee" },
+            { id: 34, name: "Tea (Chai)", description: "Indian spiced milk tea.", price: 80, category: "Beverage", image: "https://placehold.co/400x250/ffe4e1/333?text=Chai" },
+            { id: 35, name: "Chicken Korma", description: "Mild, creamy chicken curry with nuts.", price: 430, category: "Main Course", image: "https://placehold.co/400x250/ffc0cb/333?text=Chicken+Korma" },
+            { id: 36, name: "Mutton Rogan Josh", description: "Rich and spicy Kashmiri mutton curry.", price: 580, category: "Main Course", image: "https://placehold.co/400x250/ffe4e1/333?text=Mutton+Rogan" },
+            { id: 37, name: "Malai Kofta", description: "Paneer and potato dumplings in a rich, creamy gravy.", price: 390, category: "Vegetarian", image: "https://placehold.co/400x250/ffc0cb/333?text=Malai+Kofta" },
+            { id: 38, name: "Bhindi Masala", description: "Okra cooked with onions and spices.", price: 270, category: "Vegetarian", image: "https://placehold.co/400x250/ffe4e1/333?text=Bhindi+Masala" },
+            { id: 39, name: "Egg Curry", description: "Boiled eggs in a spicy onion-tomato gravy.", price: 300, category: "Non-Vegetarian", image: "https://placehold.co/400x250/ffc0cb/333?text=Egg+Curry" },
+            { id: 40, name: "Prawn Masala", description: "Spicy prawn curry.", price: 520, category: "Non-Vegetarian", image: "https://placehold.co/400x250/ffe4e1/333?text=Prawn+Masala" },
+            { id: 41, name: "Chicken Lollipop (4 pcs)", description: "Crispy fried chicken drumettes.", price: 350, category: "Appetizer", image: "https://placehold.co/400x250/ffc0cb/333?text=Chicken+Lollipop" },
+            { id: 42, name: "Spring Rolls (Veg)", description: "Crispy rolls filled with vegetables.", price: 180, category: "Appetizer", image: "https://placehold.co/400x250/ffe4e1/333?text=Spring+Rolls" },
+            { id: 43, name: "Schezwan Fried Rice (Veg)", description: "Spicy fried rice with vegetables and Schezwan sauce.", price: 280, category: "Rice", image: "https://placehold.co/400x250/ffc0cb/333?text=Schezwan+Rice" },
+            { id: 44, name: "Veg Noodles", description: "Stir-fried noodles with mixed vegetables.", price: 250, category: "Noodles", image: "https://placehold.co/400x250/ffe4e1/333?text=Veg+Noodles" },
+            { id: 45, name: "Chicken Noodles", description: "Stir-fried noodles with chicken and vegetables.", price: 300, category: "Noodles", image: "https://placehold.co/400x250/ffc0cb/333?text=Chicken+Noodles" },
+            { id: 46, name: "Gobi Manchurian", description: "Crispy cauliflower florets tossed in a spicy, tangy sauce.", price: 290, category: "Appetizer", image: "https://placehold.co/400x250/ffe4e1/333?text=Gobi+Manchurian" },
+            { id: 47, name: "Paneer Tikka", description: "Marinated paneer grilled in a tandoor.", price: 350, category: "Appetizer", image: "https://placehold.co/400x250/ffc0cb/333?text=Paneer+Tikka" },
+            { id: 48, name: "Chicken Seekh Kebab", description: "Minced chicken skewers grilled in a tandoor.", price: 380, category: "Appetizer", image: "https://placehold.co/400x250/ffe4e1/333?text=Seekh+Kebab" },
+            { id: 49, name: "Raita (Cucumber)", description: "Yogurt dip with grated cucumber and mild spices.", price: 100, category: "Accompaniment", image: "https://placehold.co/400x250/ffc0cb/333?text=Cucumber+Raita" },
+            { id: 50, name: "Papad (Roasted)", description: "Crispy roasted lentil cracker.", price: 50, category: "Accompaniment", image: "https://placehold.co/400x250/ffe4e1/333?text=Papad" },
+            { id: 51, name: "Green Salad", description: "Fresh mixed greens with a light dressing.", price: 120, category: "Accompaniment", image: "https://placehold.co/400x250/ffc0cb/333?text=Green+Salad" },
+            { id: 52, name: "Veg Thali", description: "A complete meal with assorted vegetarian dishes, rice, bread, and dessert.", price: 450, category: "Thali", image: "https://placehold.co/400x250/ffe4e1/333?text=Veg+Thali" },
+            { id: 53, name: "Non-Veg Thali", description: "A complete meal with assorted non-vegetarian dishes, rice, bread, and dessert.", price: 550, category: "Thali", image: "https://placehold.co/400x250/ffc0cb/333?text=Non-Veg+Thali" },
+            { id: 54, name: "Masala Chai", description: "Spiced Indian tea, perfect for a refreshing break.", price: 80, category: "Beverage", image: "https://placehold.co/400x250/ffe4e1/333?text=Masala+Chai" },
+            { id: 55, name: "Fresh Lime Soda", description: "Refreshing lime drink, sweet or salted.", price: 100, category: "Beverage", image: "https://placehold.co/400x250/ffc0cb/333?text=Lime+Soda" }
+        ];
+
+        let cart = [];
+        let deliveryAddress = null;
+        const DELIVERY_FEE = 40;
+        const GST_RATE = 0.05; // 5%
+
+        // --- DOM Elements ---
+        const menuSection = document.getElementById('menuSection');
+        const searchInput = document.getElementById('searchInput');
+        const cartButton = document.getElementById('cartButton');
+        const cartItemCount = document.getElementById('cartItemCount');
+        const locationButton = document.getElementById('locationButton');
+        const noResultsMessage = document.getElementById('noResults');
+
+        // Modals
+        const cartModal = document.getElementById('cartModal');
+        const cartItemsContainer = document.getElementById('cartItemsContainer');
+        const emptyCartMessage = document.getElementById('emptyCartMessage');
+        const cartSubtotalSpan = document.getElementById('cartSubtotal');
+        const cartDeliveryFeeSpan = document.getElementById('cartDeliveryFee');
+        const cartGSTSpan = document.getElementById('cartGST');
+        const cartTotalSpan = document.getElementById('cartTotal');
+        const checkoutButton = document.getElementById('checkoutButton');
+
+        const addressModal = document.getElementById('addressModal');
+        const addressForm = document.getElementById('addressForm');
+        const phoneInput = document.getElementById('phoneNumber');
+        const phoneError = document.getElementById('phoneError');
+        const pincodeInput = document.getElementById('pincode');
+        const pincodeError = document.getElementById('pincodeError');
+
+        const checkoutModal = document.getElementById('checkoutModal');
+        const displayFullName = document.getElementById('displayFullName');
+        const displayAddressLine1 = document.getElementById('displayAddressLine1');
+        const displayAddressLine2 = document.getElementById('displayAddressLine2');
+        const displayCity = document.getElementById('displayCity');
+        const displayPincode = document.getElementById('displayPincode');
+        const displayLandmark = document.getElementById('displayLandmark');
+        const displayPhoneNumber = document.getElementById('displayPhoneNumber');
+        const changeAddressButton = document.getElementById('changeAddressButton');
+        const checkoutOrderItems = document.getElementById('checkoutOrderItems');
+        const checkoutSubtotalSpan = document.getElementById('checkoutSubtotal');
+        const checkoutDeliveryFeeSpan = document.getElementById('checkoutDeliveryFee');
+        const checkoutGSTSpan = document.getElementById('checkoutGST');
+        const checkoutTotalSpan = document.getElementById('checkoutTotal');
+        const placeOrderButton = document.getElementById('placeOrderButton');
+
+        const confirmationModal = document.getElementById('confirmationModal');
+        const confOrderId = document.getElementById('confOrderId');
+        const confTotalAmount = document.getElementById('confTotalAmount');
+        const confPaymentMethod = document.getElementById('confPaymentMethod');
+        const confAddress = document.getElementById('confAddress');
+
+        // --- Functions ---
+
+        /**
+         * Renders the menu items based on a filtered list.
+         * @param {Array} itemsToRender - The array of menu items to display.
+         */
+        function renderMenuItems(itemsToRender) {
+            menuSection.innerHTML = ''; // Clear existing items
+            if (itemsToRender.length === 0) {
+                noResultsMessage.classList.remove('hidden');
+                return;
+            } else {
+                noResultsMessage.classList.add('hidden');
+            }
+
+            itemsToRender.forEach(item => {
+                const itemDiv = document.createElement('div');
+                itemDiv.className = 'bg-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden transform hover:-translate-y-1';
+                itemDiv.innerHTML = `
+                    <img src="${item.image}" alt="${item.name}" class="w-full h-48 object-cover rounded-t-xl">
+                    <div class="p-5">
+                        <h3 class="text-xl font-semibold text-gray-800 mb-2">${item.name}</h3>
+                        <p class="text-sm text-gray-600 mb-3">${item.description}</p>
+                        <div class="flex items-center justify-between mt-4">
+                            <span class="text-2xl font-bold text-pink-600">₹${item.price.toFixed(2)}</span>
+                            <button class="add-to-cart-btn btn-primary px-4 py-2 text-base" data-item-id="${item.id}">
+                                Add to Cart
+                            </button>
+                        </div>
+                    </div>
+                `;
+                menuSection.appendChild(itemDiv);
+            });
+
+            // Attach event listeners to "Add to Cart" buttons
+            document.querySelectorAll('.add-to-cart-btn').forEach(button => {
+                button.addEventListener('click', (event) => {
+                    const itemId = parseInt(event.target.dataset.itemId);
+                    addToCart(itemId);
+                    // Add a pulse animation to the button
+                    event.target.classList.add('item-added-pulse');
+                    setTimeout(() => {
+                        event.target.classList.remove('item-added-pulse');
+                    }, 300);
+                });
+            });
+        }
+
+        /**
+         * Adds an item to the cart or increments its quantity if already present.
+         * @param {number} itemId - The ID of the item to add.
+         */
+        function addToCart(itemId) {
+            const existingItemIndex = cart.findIndex(item => item.id === itemId);
+            if (existingItemIndex > -1) {
+                cart[existingItemIndex].quantity++;
+            } else {
+                const itemToAdd = menuItems.find(item => item.id === itemId);
+                if (itemToAdd) {
+                    cart.push({ ...itemToAdd, quantity: 1 });
+                }
+            }
+            updateCartDisplay();
+        }
+
+        /**
+         * Updates the cart display in the header and the cart modal.
+         */
+        function updateCartDisplay() {
+            let totalItemsInCart = cart.reduce((sum, item) => sum + item.quantity, 0);
+            cartItemCount.textContent = totalItemsInCart;
+
+            cartItemsContainer.innerHTML = ''; // Clear existing cart items
+            if (cart.length === 0) {
+                emptyCartMessage.classList.remove('hidden');
+                checkoutButton.disabled = true;
+                checkoutButton.classList.add('opacity-50', 'cursor-not-allowed');
+            } else {
+                emptyCartMessage.classList.add('hidden');
+                checkoutButton.disabled = false;
+                checkoutButton.classList.remove('opacity-50', 'cursor-not-allowed');
+
+                cart.forEach(item => {
+                    const cartItemDiv = document.createElement('div');
+                    cartItemDiv.className = 'flex items-center justify-between p-3 border-b border-gray-100 last:border-b-0';
+                    cartItemDiv.innerHTML = `
+                        <div class="flex items-center gap-3">
+                            <img src="${item.image}" alt="${item.name}" class="w-16 h-16 object-cover rounded-md">
+                            <div>
+                                <h4 class="font-semibold text-gray-800">${item.name}</h4>
+                                <p class="text-sm text-gray-500">₹${item.price.toFixed(2)} x ${item.quantity}</p>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <button class="quantity-btn bg-gray-200 text-gray-700 px-2 py-1 rounded-md hover:bg-gray-300 transition-colors" data-id="${item.id}" data-action="decrease">-</button>
+                            <span class="font-medium text-gray-800">${item.quantity}</span>
+                            <button class="quantity-btn bg-gray-200 text-gray-700 px-2 py-1 rounded-md hover:bg-gray-300 transition-colors" data-id="${item.id}" data-action="increase">+</button>
+                            <button class="remove-from-cart-btn text-red-500 hover:text-red-700 ml-2" data-id="${item.id}">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-trash-2"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>
+                            </button>
+                        </div>
+                    `;
+                    cartItemsContainer.appendChild(cartItemDiv);
+                });
+
+                // Attach event listeners for quantity and remove buttons
+                document.querySelectorAll('.quantity-btn').forEach(button => {
+                    button.addEventListener('click', (event) => {
+                        const itemId = parseInt(event.target.dataset.id);
+                        const action = event.target.dataset.action;
+                        updateItemQuantity(itemId, action);
+                    });
+                });
+                document.querySelectorAll('.remove-from-cart-btn').forEach(button => {
+                    button.addEventListener('click', (event) => {
+                        const itemId = parseInt(event.target.dataset.id);
+                        removeFromCart(itemId);
+                    });
+                });
+            }
+            calculateCartTotals();
+        }
+
+        /**
+         * Updates the quantity of an item in the cart.
+         * @param {number} itemId - The ID of the item.
+         * @param {string} action - 'increase' or 'decrease'.
+         */
+        function updateItemQuantity(itemId, action) {
+            const itemIndex = cart.findIndex(item => item.id === itemId);
+            if (itemIndex > -1) {
+                if (action === 'increase') {
+                    cart[itemIndex].quantity++;
+                } else if (action === 'decrease') {
+                    cart[itemIndex].quantity--;
+                    if (cart[itemIndex].quantity <= 0) {
+                        cart.splice(itemIndex, 1); // Remove item if quantity is 0 or less
+                    }
+                }
+            }
+            updateCartDisplay();
+        }
+
+        /**
+         * Removes an item completely from the cart.
+         * @param {number} itemId - The ID of the item to remove.
+         */
+        function removeFromCart(itemId) {
+            cart = cart.filter(item => item.id !== itemId);
+            updateCartDisplay();
+        }
+
+        /**
+         * Calculates and updates the subtotal, delivery fee, GST, and total in the cart.
+         */
+        function calculateCartTotals() {
+            let subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+            let deliveryFee = cart.length > 0 ? DELIVERY_FEE : 0; // Only apply delivery fee if cart is not empty
+            let gst = subtotal * GST_RATE;
+            let total = subtotal + deliveryFee + gst;
+
+            cartSubtotalSpan.textContent = subtotal.toFixed(2);
+            cartDeliveryFeeSpan.textContent = deliveryFee.toFixed(2);
+            cartGSTSpan.textContent = gst.toFixed(2);
+            cartTotalSpan.textContent = total.toFixed(2);
+
+            // Update checkout modal totals as well
+            checkoutSubtotalSpan.textContent = subtotal.toFixed(2);
+            checkoutDeliveryFeeSpan.textContent = deliveryFee.toFixed(2);
+            checkoutGSTSpan.textContent = gst.toFixed(2);
+            checkoutTotalSpan.textContent = total.toFixed(2);
+        }
+
+        /**
+         * Opens a specified modal.
+         * @param {string} modalId - The ID of the modal to open.
+         */
+        function openModal(modalId) {
+            document.getElementById(modalId).classList.add('active');
+        }
+
+        /**
+         * Closes a specified modal.
+         * @param {string} modalId - The ID of the modal to close.
+         */
+        function closeModal(modalId) {
+            document.getElementById(modalId).classList.remove('active');
+        }
+
+        /**
+         * Handles the search input to filter menu items.
+         */
+        function handleSearch() {
+            const searchTerm = searchInput.value.toLowerCase();
+            const filteredItems = menuItems.filter(item =>
+                item.name.toLowerCase().includes(searchTerm) ||
+                item.description.toLowerCase().includes(searchTerm) ||
+                item.category.toLowerCase().includes(searchTerm)
+            );
+            renderMenuItems(filteredItems);
+        }
+
+        /**
+         * Populates the checkout modal with order details and address.
+         */
+        function populateCheckoutModal() {
+            if (!deliveryAddress) {
+                openModal('addressModal'); // Force address entry if not present
+                return;
+            }
+
+            // Display address details
+            displayFullName.textContent = deliveryAddress.fullName;
+            displayAddressLine1.textContent = deliveryAddress.addressLine1;
+            displayAddressLine2.textContent = deliveryAddress.addressLine2;
+            displayCity.textContent = deliveryAddress.city;
+            displayPincode.textContent = deliveryAddress.pincode;
+            displayLandmark.textContent = deliveryAddress.landmark ? `Landmark: ${deliveryAddress.landmark}` : '';
+            displayPhoneNumber.textContent = deliveryAddress.phoneNumber;
+
+            // Display order items in checkout summary
+            checkoutOrderItems.innerHTML = '';
+            cart.forEach(item => {
+                const itemDiv = document.createElement('div');
+                itemDiv.className = 'flex justify-between items-center py-2 border-b border-gray-100';
+                itemDiv.innerHTML = `
+                    <span class="text-gray-700">${item.name} x ${item.quantity}</span>
+                    <span class="font-medium text-gray-800">₹${(item.price * item.quantity).toFixed(2)}</span>
+                `;
+                checkoutOrderItems.appendChild(itemDiv);
+            });
+
+            calculateCartTotals(); // Recalculate to ensure totals are fresh
+            openModal('checkoutModal');
+        }
+
+        /**
+         * Handles the address form submission.
+         * @param {Event} event - The form submission event.
+         */
+        function handleAddressFormSubmit(event) {
+            event.preventDefault(); // Prevent default form submission
+
+            // Basic validation
+            let isValid = true;
+
+            // Phone number validation
+            if (!/^\d{10}$/.test(phoneInput.value)) {
+                phoneError.classList.remove('hidden');
+                isValid = false;
+            } else {
+                phoneError.classList.add('hidden');
+            }
+
+            // Pincode validation
+            if (!/^\d{6}$/.test(pincodeInput.value)) {
+                pincodeError.classList.remove('hidden');
+                isValid = false;
+            } else {
+                pincodeError.classList.add('hidden');
+            }
+
+            if (!isValid) {
+                return; // Stop if validation fails
+            }
+
+            deliveryAddress = {
+                fullName: document.getElementById('fullName').value,
+                phoneNumber: document.getElementById('phoneNumber').value,
+                addressLine1: document.getElementById('addressLine1').value,
+                addressLine2: document.getElementById('addressLine2').value,
+                city: document.getElementById('city').value,
+                pincode: document.getElementById('pincode').value,
+                landmark: document.getElementById('landmark').value
+            };
+
+            closeModal('addressModal');
+            // If coming from checkout, reopen checkout modal
+            if (cart.length > 0) {
+                populateCheckoutModal();
+            }
+        }
+
+        /**
+         * Simulates placing an order and shows confirmation.
+         */
+        function placeOrder() {
+            if (!deliveryAddress) {
+                openModal('addressModal'); // Ensure address is entered before placing order
+                return;
+            }
+            if (cart.length === 0) {
+                // This shouldn't happen if checkout button is disabled, but as a safeguard
+                closeModal('checkoutModal');
+                openModal('cartModal'); // Show cart is empty
+                return;
+            }
+
+            const selectedPaymentMethod = document.querySelector('input[name="paymentMethod"]:checked').value;
+            const totalAmount = parseFloat(cartTotalSpan.textContent);
+            const orderId = `FOODIE${Math.floor(Math.random() * 1000000)}`;
+
+            // Populate confirmation modal
+            confOrderId.textContent = orderId;
+            confTotalAmount.textContent = totalAmount.toFixed(2);
+            confPaymentMethod.textContent = selectedPaymentMethod === 'cod' ? 'Cash on Delivery' : 'Online Payment (Simulated)';
+            confAddress.textContent = `${deliveryAddress.addressLine1}, ${deliveryAddress.city} - ${deliveryAddress.pincode}`;
+
+            closeModal('checkoutModal');
+            openModal('confirmationModal');
+
+            // In a real app, here you would send the order to a backend.
+            console.log("Order Placed:", {
+                orderId: orderId,
+                items: cart,
+                total: totalAmount,
+                paymentMethod: selectedPaymentMethod,
+                deliveryAddress: deliveryAddress
+            });
+        }
+
+        /**
+         * Resets the application state after an order is placed.
+         */
+        function resetApp() {
+            cart = [];
+            deliveryAddress = null; // Clear address for next order
+            updateCartDisplay();
+            // Clear address form fields
+            addressForm.reset();
+            // Ensure modals are closed
+            closeModal('cartModal');
+            closeModal('addressModal');
+            closeModal('checkoutModal');
+            closeModal('confirmationModal');
+            // Re-render menu in case search was active
+            renderMenuItems(menuItems);
+            searchInput.value = ''; // Clear search input
+        }
+
+        // --- Event Listeners ---
+        document.addEventListener('DOMContentLoaded', () => {
+            renderMenuItems(menuItems); // Initial render of all menu items
+            updateCartDisplay(); // Initialize cart display
+        });
+
+        searchInput.addEventListener('input', handleSearch);
+        cartButton.addEventListener('click', () => openModal('cartModal'));
+        locationButton.addEventListener('click', () => openModal('addressModal'));
+        checkoutButton.addEventListener('click', populateCheckoutModal);
+        addressForm.addEventListener('submit', handleAddressFormSubmit);
+        changeAddressButton.addEventListener('click', () => {
+            closeModal('checkoutModal');
+            openModal('addressModal');
+            // Pre-fill address form if data exists
+            if (deliveryAddress) {
+                document.getElementById('fullName').value = deliveryAddress.fullName;
+                document.getElementById('phoneNumber').value = deliveryAddress.phoneNumber;
+                document.getElementById('addressLine1').value = deliveryAddress.addressLine1;
+                document.getElementById('addressLine2').value = deliveryAddress.addressLine2;
+                document.getElementById('city').value = deliveryAddress.city;
+                document.getElementById('pincode').value = deliveryAddress.pincode;
+                document.getElementById('landmark').value = deliveryAddress.landmark;
+            }
+        });
+        placeOrderButton.addEventListener('click', placeOrder);
+
+        // Close modal when clicking outside content (on overlay)
+        document.querySelectorAll('.modal-overlay').forEach(overlay => {
+            overlay.addEventListener('click', (event) => {
+                if (event.target === overlay) {
+                    closeModal(overlay.id);
+                }
+            });
+        });
+    </script>
+</body>
+</html>
